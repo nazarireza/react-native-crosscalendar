@@ -37,21 +37,6 @@ class CrossCalendarItem extends Component {
 		}
 	}
 
-	getFirstDayOfWeek = monthContext => {
-		return monthContext.startOf('month').format('d');
-	};
-
-	getFirstDayOfWeekForNextMonth = monthContext => {
-		return monthContext
-			.add(1, 'months')
-			.startOf('month')
-			.format('d');
-	};
-
-	getDaysInMonth = monthContext => {
-		return monthContext.daysInMonth();
-	};
-
 	getWeeks = month => {
 		let now = moment();
 
@@ -61,17 +46,19 @@ class CrossCalendarItem extends Component {
 
 		let monthDays = [];
 
-		let firstDayOfWeek = this.getFirstDayOfWeek(monthContext);
+		let firstDayOfWeek = monthContext.startOf('month').format('d');
 		let preMonthContext = moment(monthContext).add(-firstDayOfWeek, 'd');
 		for (let i = 0; i < firstDayOfWeek; i++) {
 			monthDays.push({
-				date: preMonthContext.add(i, 'd').toDate(),
+				date: preMonthContext.toDate(),
 				title: '',
 				isInThisMonth: false
 			});
+
+			preMonthContext.add(1, 'd');
 		}
 
-		let daysInMonth = this.getDaysInMonth(monthContext);
+		let daysInMonth = monthContext.daysInMonth();
 		for (let i = 0; i < daysInMonth; i++) {
 			monthDays.push({
 				date: monthContext.toDate(),
@@ -84,9 +71,7 @@ class CrossCalendarItem extends Component {
 			monthContext.add(1, 'd');
 		}
 
-		let firstDayOfWeekForNextMonth = this.getFirstDayOfWeekForNextMonth(
-			monthContext
-		);
+		let firstDayOfWeekForNextMonth = monthContext.startOf('month').format('d');
 		for (let i = firstDayOfWeekForNextMonth, j = 0; i < 7; i++, j++) {
 			monthDays.push({
 				date: monthContext
@@ -302,7 +287,6 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center',
 		flex: 1,
-		padding: 5
 	},
 	weekDayContentContainer: {
 		alignItems: 'center',
@@ -319,7 +303,7 @@ const styles = StyleSheet.create({
 	},
 	weekDayNameText: {
 		color: '#00f1ff',
-		fontSize: 14
+		fontSize: 12
 	},
 	weekDayText: {
 		color: 'white',
