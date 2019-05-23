@@ -8,7 +8,8 @@ import {
 	Image,
 	Dimensions,
 	ViewPropTypes,
-	ScrollView
+	ScrollView,
+	Animated
 } from 'react-native';
 
 import moment from 'moment';
@@ -19,128 +20,145 @@ let dimension = Dimensions.get('window');
 const leftArrow = require('./assets/left_arrow.png');
 const rightArrow = require('./assets/right_arrow.png');
 
-const months = moment.months();
 const weekDays = moment.weekdaysShort();
+const now = moment();
 
 class CrossCalendarItem extends Component {
-	shouldComponentUpdate(nextProps, nextState) {
-		const { item, selectedDate } = nextProps;
+	state = {
+		opacity: new Animated.Value(0)
+	};
 
-		if (selectedDate && moment(selectedDate).month() == item) {
+	shouldComponentUpdate({ monthIndex, selectedDate }, nextStates) {
+		if (
+			selectedDate &&
+			moment(selectedDate).month() ==
+				moment()
+					.startOf('year')
+					.add(monthIndex, 'month')
+					.month() &&
+			this.selectedDate !== selectedDate
+		) {
+			// Select this month day and component updates.
+			console.log('Select this month day and component updates.');
 			this.isSelectThisMonth = true;
+			this.selectedDate = selectedDate;
 			return true;
-		} else if (this.isSelectThisMonth) {
+		} else if (this.isSelectThisMonth && this.selectedDate !== selectedDate) {
+			// Deselect this month day and component updates.
+			console.log('Deselect this month day and component updates.');
 			this.isSelectThisMonth = false;
+			this.selectedDate = null;
+			return true;
+		} else if (!this.isInitialize) {
+			// First component render and component updates.
+			console.log('First component render and component updates.');
+			this.isInitialize = true;
 			return true;
 		} else {
+			// There is not changes and component doesn't update.
+			// console.log('There is not changes and component doesnt update.');
 			return false;
 		}
 	}
 
-	getWeeks = month => {
-		let now = moment();
+	componentWillUnmount() {
+		// console.info('unmount', this.props.monthIndex);
+	}
 
+	getWeeks = monthIndex => {
 		let monthContext = moment()
-			.startOf('month')
-			.set('month', month);
+			.startOf('year')
+			.add(monthIndex, 'month');
 
-		let monthDays = [];
-
-		let firstDayOfWeek = monthContext.startOf('month').format('d');
-		let preMonthContext = moment(monthContext).add(-firstDayOfWeek, 'd');
-		for (let i = 0; i < firstDayOfWeek; i++) {
-			monthDays.push({
-				date: preMonthContext.toDate(),
-				title: '',
-				isInThisMonth: false
-			});
-
-			preMonthContext.add(1, 'd');
-		}
-
-		let daysInMonth = monthContext.daysInMonth();
-		for (let i = 0; i < daysInMonth; i++) {
-			monthDays.push({
-				date: monthContext.toDate(),
-				title: `${i + 1}`,
-				isInThisMonth: true,
-				isCurrentDate: monthContext.dayOfYear() === now.dayOfYear(),
-				isDayOff: monthContext.format('d') === '6'
-			});
-
-			monthContext.add(1, 'd');
-		}
-
-		let firstDayOfWeekForNextMonth = monthContext.startOf('month').format('d');
-		for (let i = firstDayOfWeekForNextMonth, j = 0; i < 7; i++, j++) {
-			monthDays.push({
-				date: monthContext
-					.startOf('month')
-					.add(j, 'd')
-					.toDate(),
-				title: '',
-				isInThisMonth: false
-			});
-		}
+		let startPoint = monthContext.clone().startOf('week');
 
 		let weeks = [];
-		let week = [];
+		for (let i = 0; i < 6; i++) {
+			// Iterate weeks (Max week count is 6)
 
-		for (let i = 1; i <= monthDays.length; i++) {
-			week.push(monthDays[i - 1]);
+			let week = [];
+			for (let j = 0; j < 7; j++) {
+				// Iterate week days (Max week days count is 7)
 
-			if (i % 7 === 0) {
-				weeks.push([...week]);
-				week = [];
+				let date = startPoint.clone().add(i * 7 + j, 'd');
+
+				let title = date.format('D');
+				let isInThisMonth = date.month() === monthContext.month();
+				let isToday = date.format('YYYYMMDD') === now.format('YYYYMMDD');
+				let isDayOff = date.day() == 6;
+
+				week.push({
+					title,
+					date,
+					isInThisMonth,
+					isToday,
+					isDayOff
+				});
 			}
+
+			weeks.push(week);
 		}
 
 		return weeks;
 	};
 
+	componentWillMount() {
+		const { monthIndex } = this.props;
+		this.weeks = this.getWeeks(monthIndex);
+
+		this.isInitialize = true;
+	}
+
+	// componentDidMount() {
+	// 	const { opacity } = this.state;
+
+	// 	Animated.timing(opacity, {
+	// 		toValue: 1,
+	// 		duration: 1000
+	// 	}).start();
+	// }
+
 	render() {
-		const { item, onSelectDate, selectedDate } = this.props;
+		const { monthIndex, onSelectDate, selectedDate } = this.props;
+		const { opacity } = this.state;
 
-		// console.log(item);
-
-		let weeks = this.getWeeks(item);
+		console.log(`Render: ${monthIndex}`);
 
 		return (
-			<View style={styles.weeksContainer}>
-				{weeks.map((week, i) => (
-					<View key={`${item}-${i}`} style={styles.weekDaysContainer}>
-						{week.map(
-							({ date, title, isCurrentDate, isDayOff, isInThisMonth }) => (
-								<View
-									key={`${item}-${isInThisMonth}-${date.getTime()}`}
-									style={[styles.weekDayContainer]}>
-									<TouchableOpacity
-										activeOpacity={0.7}
-										onPress={() => {
-											isInThisMonth && onSelectDate(date);
-										}}
+			<View style={[styles.weeksContainer]}>
+				{this.weeks.map((week, i) => (
+					<View key={`${monthIndex}-${i}`} style={styles.weekDaysContainer}>
+						{week.map(({ date, title, isToday, isDayOff, isInThisMonth }) => (
+							<View
+								key={`${monthIndex}-${isInThisMonth}-${date}`}
+								style={[styles.weekDayContainer]}>
+								<TouchableOpacity
+									disabled={!isInThisMonth}
+									activeOpacity={0.7}
+									onPress={() => {
+										isInThisMonth && onSelectDate(date);
+									}}
+									style={[
+										styles.weekDayContentContainer,
+										isToday && styles.currentWeekDayContentContainer,
+										isInThisMonth &&
+											selectedDate &&
+											selectedDate.format('YYYYMMDD') ===
+												date.format('YYYYMMDD') &&
+											styles.selectedWeekDayContentContainer
+									]}>
+									<Text
 										style={[
-											styles.weekDayContentContainer,
-											isCurrentDate && styles.currentWeekDayContentContainer,
-											isInThisMonth &&
-												selectedDate &&
-												selectedDate.getTime() === date.getTime() &&
-												styles.selectedWeekDayContentContainer
+											styles.weekDayText,
+											isInThisMonth && isToday && styles.currentWeekDayText,
+											isInThisMonth && isDayOff && styles.dayOffWeekDayText,
+											!isInThisMonth && styles.outOfMonthDayText
 										]}>
-										<Text
-											style={[
-												styles.weekDayText,
-												isInThisMonth &&
-													isCurrentDate &&
-													styles.currentWeekDayText,
-												isInThisMonth && isDayOff && styles.dayOffWeekDayText
-											]}>
-											{title}
-										</Text>
-									</TouchableOpacity>
-								</View>
-							)
-						)}
+										{title}
+									</Text>
+								</TouchableOpacity>
+							</View>
+						))}
 					</View>
 				))}
 			</View>
@@ -151,17 +169,32 @@ class CrossCalendarItem extends Component {
 class CrossCalendar extends Component {
 	state = {
 		selectedDate: null,
-		selectedMonth: moment().format('MMMM')
+		selectedMonthName: moment().format('YYYY-MMMM'),
+		selectedIndex: 1,
+		loadedMonths: [],
+		currentMonth: null
 	};
 
 	onSelectDate = date => {
 		this.setState({ selectedDate: date });
 	};
 
-	render() {
-		const { selectedDate, selectedMonth } = this.state;
-
+	componentWillMount() {
 		let currentMonth = moment().month();
+		this.setState({
+			currentMonth,
+			loadedMonths: [currentMonth - 1, currentMonth, currentMonth + 1]
+		});
+	}
+
+	render() {
+		const {
+			selectedDate,
+			selectedMonthName,
+			loadedMonths,
+			currentMonth,
+			loadMonthsFlag
+		} = this.state;
 
 		return (
 			<View style={styles.container}>
@@ -171,30 +204,10 @@ class CrossCalendar extends Component {
 						style={styles.moveMonthButtonContainer}>
 						<Image source={leftArrow} style={styles.moveMonthButtonImage} />
 					</TouchableOpacity>
-					{/* <FlatList
-						contentContainerStyle={styles.monthNamesListContentContainer}
-						showsHorizontalScrollIndicator={false}
-						data={months}
-						horizontal
-						scrollEnabled={false}
-						pagingEnabled
-						keyExtractor={p => p}
-						initialScrollIndex={currentMonth}
-						getItemLayout={(data, index) => ({
-							length: dimension.width - 100,
-							offset: (dimension.width - 100) * index,
-							index
-						})}
-						renderItem={({ item }) => (
-							<View style={[styles.monthNameContainer]}>
-								<Text style={[styles.monthNameText]}>{item}</Text>
-							</View>
-						)}
-					/> */}
 
 					<View style={[styles.monthNameContainer]}>
 						<Text style={[globalStyles.text, styles.monthNameText]}>
-							{selectedMonth}
+							{selectedMonthName}
 						</Text>
 					</View>
 
@@ -215,30 +228,77 @@ class CrossCalendar extends Component {
 				</View>
 				<FlatList
 					horizontal
+					// extraData={this.state.selectedDate}
 					pagingEnabled
+					maxToRenderPerBatch={0}
+					removeClippedSubviews={false}
 					showsHorizontalScrollIndicator={false}
 					getItemLayout={(data, index) => ({
 						length: dimension.width,
 						offset: dimension.width * index,
 						index
 					})}
-					initialScrollIndex={currentMonth}
-					data={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
-					onMomentumScrollEnd={({ nativeEvent: { contentOffset: offset } }) => {
-						if (offset) {
-							var pageIndex = Math.round(offset.x / dimension.width);
+					initialScrollIndex={1}
+					// initialNumToRender={1}
+					data={loadedMonths}
+					keyExtractor={(item, index) => {
+						return `${item}`;
+					}}
+					key={this.state.loadMonthsFlag}
+					scrollEventThrottle={16}
+					onScroll={({
+						nativeEvent: {
+							contentOffset: { x }
+						}
+					}) => {
+						var pageIndex = Math.round(x / dimension.width);
+
+						const { selectedIndex } = this.state;
+
+						if (pageIndex !== selectedIndex) {
 							this.setState({
-								selectedMonth: moment()
-									.set('month', pageIndex)
-									.format('MMMM')
+								selectedIndex: pageIndex,
+								selectedMonthName: moment()
+									.set('month', loadedMonths[pageIndex])
+									.format('YYYY-MMMM'),
+								currentMonth:
+									pageIndex < selectedIndex
+										? currentMonth - 1
+										: currentMonth + 1
 							});
+						}
+					}}
+					onMomentumScrollEnd={() => {
+						const {
+							currentMonth,
+							loadedMonths,
+							loadMonthsFlag,
+							selectedIndex
+						} = this.state;
+
+						if (loadedMonths[1] !== currentMonth) {
+							this.setState(
+								{
+									selectedIndex: 1,
+									loadMonthsFlag: !loadMonthsFlag,
+									// loadedMonths:
+									// 	currentMonth > loadedMonths[1]
+									// 		? [...loadedMonths, currentMonth + 1]
+									// 		: [currentMonth - 1, ...loadedMonths]
+									loadedMonths:
+										currentMonth > loadedMonths[1]
+											? [...loadedMonths.slice(1), currentMonth + 1]
+											: [currentMonth - 1, ...loadedMonths.slice(0, -1)]
+								},
+								() => console.log(this.state.loadedMonths)
+							);
 						}
 					}}
 					renderItem={({ item }) => {
 						return (
 							<CrossCalendarItem
 								selectedDate={selectedDate}
-								item={item}
+								monthIndex={item}
 								onSelectDate={this.onSelectDate}
 							/>
 						);
@@ -286,7 +346,7 @@ const styles = StyleSheet.create({
 		margin: 1,
 		alignItems: 'center',
 		justifyContent: 'center',
-		flex: 1,
+		flex: 1
 	},
 	weekDayContentContainer: {
 		alignItems: 'center',
@@ -316,6 +376,9 @@ const styles = StyleSheet.create({
 	},
 	dayOffWeekDayText: {
 		color: '#0054aa'
+	},
+	outOfMonthDayText: {
+		color: 'rgba(255,255,255,.4)'
 	},
 	weeksContainer: {
 		width: dimension.width
