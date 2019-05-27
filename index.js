@@ -1,4 +1,4 @@
-import React, { Component, PureComponent } from 'react';
+import React, { Component } from 'react';
 import {
 	View,
 	Text,
@@ -6,28 +6,18 @@ import {
 	FlatList,
 	TouchableOpacity,
 	Image,
-	Dimensions,
-	ViewPropTypes,
-	ScrollView,
-	Animated
+	Dimensions
 } from 'react-native';
-
 import moment from 'moment';
-import { globalStyles } from '../../src/assets/styles';
-
-let dimension = Dimensions.get('window');
 
 const leftArrow = require('./assets/left_arrow.png');
 const rightArrow = require('./assets/right_arrow.png');
 
+let dimension = Dimensions.get('window');
 const weekDays = moment.weekdaysShort();
 const now = moment();
 
 class CrossCalendarItem extends Component {
-	state = {
-		opacity: new Animated.Value(0)
-	};
-
 	shouldComponentUpdate({ monthIndex, selectedDate }, nextStates) {
 		if (
 			selectedDate &&
@@ -59,10 +49,6 @@ class CrossCalendarItem extends Component {
 			// console.log('There is not changes and component doesnt update.');
 			return false;
 		}
-	}
-
-	componentWillUnmount() {
-		// console.info('unmount', this.props.monthIndex);
 	}
 
 	getWeeks = monthIndex => {
@@ -109,18 +95,8 @@ class CrossCalendarItem extends Component {
 		this.isInitialize = true;
 	}
 
-	// componentDidMount() {
-	// 	const { opacity } = this.state;
-
-	// 	Animated.timing(opacity, {
-	// 		toValue: 1,
-	// 		duration: 1000
-	// 	}).start();
-	// }
-
 	render() {
 		const { monthIndex, onSelectDate, selectedDate } = this.props;
-		const { opacity } = this.state;
 
 		console.log(`Render: ${monthIndex}`);
 
@@ -206,9 +182,7 @@ class CrossCalendar extends Component {
 					</TouchableOpacity>
 
 					<View style={[styles.monthNameContainer]}>
-						<Text style={[globalStyles.text, styles.monthNameText]}>
-							{selectedMonthName}
-						</Text>
+						<Text style={[styles.monthNameText]}>{selectedMonthName}</Text>
 					</View>
 
 					<TouchableOpacity
@@ -228,10 +202,9 @@ class CrossCalendar extends Component {
 				</View>
 				<FlatList
 					horizontal
-					// extraData={this.state.selectedDate}
+					extraData={loadMonthsFlag}
 					pagingEnabled
-					maxToRenderPerBatch={0}
-					removeClippedSubviews={false}
+					ref={ref => (this.navigator = ref)}
 					showsHorizontalScrollIndicator={false}
 					getItemLayout={(data, index) => ({
 						length: dimension.width,
@@ -239,12 +212,11 @@ class CrossCalendar extends Component {
 						index
 					})}
 					initialScrollIndex={1}
-					// initialNumToRender={1}
+					initialNumToRender={3}
 					data={loadedMonths}
 					keyExtractor={(item, index) => {
 						return `${item}`;
 					}}
-					key={this.state.loadMonthsFlag}
 					scrollEventThrottle={16}
 					onScroll={({
 						nativeEvent: {
@@ -269,28 +241,22 @@ class CrossCalendar extends Component {
 						}
 					}}
 					onMomentumScrollEnd={() => {
-						const {
-							currentMonth,
-							loadedMonths,
-							loadMonthsFlag,
-							selectedIndex
-						} = this.state;
+						const { currentMonth, loadedMonths, loadMonthsFlag } = this.state;
 
 						if (loadedMonths[1] !== currentMonth) {
 							this.setState(
 								{
 									selectedIndex: 1,
 									loadMonthsFlag: !loadMonthsFlag,
-									// loadedMonths:
-									// 	currentMonth > loadedMonths[1]
-									// 		? [...loadedMonths, currentMonth + 1]
-									// 		: [currentMonth - 1, ...loadedMonths]
 									loadedMonths:
 										currentMonth > loadedMonths[1]
 											? [...loadedMonths.slice(1), currentMonth + 1]
 											: [currentMonth - 1, ...loadedMonths.slice(0, -1)]
 								},
-								() => console.log(this.state.loadedMonths)
+								() => {
+									console.log(this.state.loadedMonths);
+									this.navigator.scrollToIndex({ index: 1, animated: false });
+								}
 							);
 						}
 					}}
