@@ -6,7 +6,8 @@ import {
 	FlatList,
 	TouchableOpacity,
 	Image,
-	Dimensions
+	Dimensions,
+	Platform
 } from 'react-native';
 import moment from 'moment';
 
@@ -255,7 +256,11 @@ class CrossCalendar extends Component {
 								},
 								() => {
 									console.log(this.state.loadedMonths);
-									this.navigator.scrollToIndex({ index: 1, animated: false });
+									this.navigator.scrollToIndex({
+										index: 1,
+										animated: Platform.OS === 'android' ? true : false, // I don't know why, but it works!
+										viewOffset: 0
+									});
 								}
 							);
 						}
