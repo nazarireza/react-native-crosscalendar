@@ -9,24 +9,26 @@ import {
 	Dimensions,
 	Platform
 } from 'react-native';
-import moment from 'moment';
+import moment from 'moment-jalaali';
 
 const leftArrow = require('./assets/left_arrow.png');
 const rightArrow = require('./assets/right_arrow.png');
 
+moment.loadPersian({ usePersianDigits: true, dialect: 'persian-modern' });
+
 let dimension = Dimensions.get('window');
-const weekDays = moment.weekdaysShort();
+const weekDays = moment.weekdaysShort(true);
 const now = moment();
 
 class CrossCalendarItem extends Component {
 	shouldComponentUpdate({ monthIndex, selectedDate }, nextStates) {
 		if (
 			selectedDate &&
-			moment(selectedDate).month() ==
+			moment(selectedDate).jMonth() ==
 				moment()
-					.startOf('year')
-					.add(monthIndex, 'month')
-					.month() &&
+					.startOf('jYear')
+					.add(monthIndex, 'jMonth')
+					.jMonth() &&
 			this.selectedDate !== selectedDate
 		) {
 			// Select this month day and component updates.
@@ -54,8 +56,8 @@ class CrossCalendarItem extends Component {
 
 	getWeeks = monthIndex => {
 		let monthContext = moment()
-			.startOf('year')
-			.add(monthIndex, 'month');
+			.startOf('jYear')
+			.add(monthIndex, 'jMonth');
 
 		let startPoint = monthContext.clone().startOf('week');
 
@@ -69,10 +71,10 @@ class CrossCalendarItem extends Component {
 
 				let date = startPoint.clone().add(i * 7 + j, 'd');
 
-				let title = date.format('D');
-				let isInThisMonth = date.month() === monthContext.month();
+				let title = date.format('jD');
+				let isInThisMonth = date.jMonth() === monthContext.jMonth();
 				let isToday = date.format('YYYYMMDD') === now.format('YYYYMMDD');
-				let isDayOff = date.day() == 6;
+				let isDayOff = date.weekday() == 6;
 
 				week.push({
 					title,
@@ -104,7 +106,12 @@ class CrossCalendarItem extends Component {
 		return (
 			<View style={[styles.weeksContainer]}>
 				{this.weeks.map((week, i) => (
-					<View key={`${monthIndex}-${i}`} style={styles.weekDaysContainer}>
+					<View
+						key={`${monthIndex}-${i}`}
+						style={[
+							styles.weekDaysContainer,
+							{ flexDirection: 'row-reverse' }
+						]}>
 						{week.map(({ date, title, isToday, isDayOff, isInThisMonth }) => (
 							<View
 								key={`${monthIndex}-${isInThisMonth}-${date}`}
@@ -146,7 +153,7 @@ class CrossCalendarItem extends Component {
 class CrossCalendar extends Component {
 	state = {
 		selectedDate: null,
-		selectedMonthName: moment().format('YYYY-MMMM'),
+		selectedMonthName: moment().format('jYYYY-jMMMM'),
 		selectedIndex: 1,
 		loadedMonths: [],
 		currentMonth: null
@@ -157,7 +164,7 @@ class CrossCalendar extends Component {
 	};
 
 	componentWillMount() {
-		let currentMonth = moment().month();
+		let currentMonth = moment().jMonth();
 		this.setState({
 			currentMonth,
 			loadedMonths: [currentMonth - 1, currentMonth, currentMonth + 1]
@@ -192,7 +199,8 @@ class CrossCalendar extends Component {
 						<Image source={rightArrow} style={styles.moveMonthButtonImage} />
 					</TouchableOpacity>
 				</View>
-				<View style={styles.weekDaysContainer}>
+				<View
+					style={[styles.weekDaysContainer, { flexDirection: 'row-reverse' }]}>
 					{weekDays.map(weekDay => (
 						<View key={weekDay} style={styles.weekDayContainer}>
 							<Text style={[styles.weekDayNameText]}>
@@ -202,6 +210,7 @@ class CrossCalendar extends Component {
 					))}
 				</View>
 				<FlatList
+					inverted
 					horizontal
 					extraData={loadMonthsFlag}
 					pagingEnabled
@@ -232,8 +241,9 @@ class CrossCalendar extends Component {
 							this.setState({
 								selectedIndex: pageIndex,
 								selectedMonthName: moment()
-									.set('month', loadedMonths[pageIndex])
-									.format('YYYY-MMMM'),
+									.startOf('jYear')
+									.add('jMonth', loadedMonths[pageIndex])
+									.format('jYYYY-jMMMM'),
 								currentMonth:
 									pageIndex < selectedIndex
 										? currentMonth - 1
